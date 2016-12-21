@@ -1,14 +1,10 @@
 ;  Executable name : mylongintlib
 ;  Version         : 1.0
 ;  Created date    : 18/11/2016
-;  Last update     : 21/11/2016
+;  Last update     : 23/12/2016
 ;  Author          : Danilo Wanzenried
-;  Description     : Manage a 128bit number.
+;  Description     : We receive a project to create a lib for manage a 128bit number.
 ; 
-;  Build using these commands:
-;   nasm -f elf64 mylongintlib.asm -g -F dwarf 
-;   ld -o mylongintlib mylongintlib.o
-;
 ; offer calls
 ; addition
 ; subtraction
@@ -20,7 +16,7 @@
 section .data                               ; Initialize variables (constants)
 
         HEXCHARS    db "0123456789ABCDEF"   ; Hex chars
-        NEW_LINE    db 0xA
+        NEW_LINE    db 0xA                  ; Enter
         SYS_READ    equ 0
         SYS_WRITE   equ 1
         STD_IN      equ 1
@@ -96,6 +92,7 @@ multiplication:
         push rdx
         push r8
         push r9
+        push r10
         
         mov r8, qword[rdi]                  ; rdi first 8 bytes
         mov r9, qword[rdi + 8]              ; rdi second 8 bytes
@@ -105,14 +102,25 @@ multiplication:
         mov qword[rdi], rax                 ; to result 
         mov qword[rdi + 8], rdx             ; overflow to result
         
-        mov rax, r9
-        mul qword[rsi]
+        mov rax, r9                         ; load second 8 bytes of rdi
+        mul qword[rsi]                      ; multiplication with first 8 bytes of rsi
         add qword[rdi + 8], rax             ; to result
         
-        mov rax, r8
-        mul qword[rsi + 8]
+        mov r10, rdx                        ; save overflow for flag
+        
+        mov rax, r8                         ; load first 8 bytes of rdi
+        mul qword[rsi + 8]                  ; multiplication with second 8 bytes of rsi
         add qword[rdi + 8], rax             ; to result
         
+        jc .setOverFlowFlag                 ; set OF if carry is set from addition
+        or r10, rdx                         ; to calculate OF
+        jg .setOverFlowFlag                 ; set OF if overflow from mul
+
+        jmp $+2                             ; no overflow, jump next 2 lines
+    .setOverFlowFlag:
+        sev                                 ; set overflow flag
+        
+        pop r10
         pop r9
         pop r8
         pop rdx

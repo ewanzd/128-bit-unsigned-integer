@@ -4,18 +4,18 @@
 ;  Last update     : 02/12/2016
 ;  Author          : Danilo Wanzenried
 ;  Description     : Test mylongintlib.
-; 
+;
 ;  Build using these commands:
-;   nasm -f elf64 -g -F dwarf testlongint.asm
-;   gcc -o testlongint testlongint.o mylongintlib.o
+; nasm -f elf64 mylongintlib.asm -g -F dwarf
+; nasm -f elf64 testlongint.asm -g -F dwarf
+; gcc -o testlongint testlongint.o mylongintlib.o
 
 section .data                   ; Initialize variables
 
-        msg_in db "Enter a number: ",16
-        msg_in_len equ $-msg_in
-
-        msg_out db "Result: ",16
-        msg_out_len equ $-msg_out
+        TXT_IN      db "Enter a number:", 0
+        TXT_ADD     db "Result addition:", 0
+        TXT_SUB     db "Result subtraction: ", 0
+        TXT_MUL     db "Result multiplication: ", 0
 
 section .bss
 
@@ -29,19 +29,25 @@ section .bss
 
 section .text                   ; Code
 
-extern printf, addition, subtraction, multiplication, readlonglong, writelonglong, copylonglong
+extern puts, addition, subtraction, multiplication, readlonglong, writelonglong, copylonglong
 global main
 
 main:
         nop
 
         ; read values
+        mov rdi, TXT_IN
+        call _printText
         mov rdi, X
         call readlonglong
         
+        mov rdi, TXT_IN
+        call _printText
         mov rdi, Y
         call readlonglong
         
+        mov rdi, TXT_IN
+        call _printText
         mov rdi, Z
         call readlonglong
         
@@ -58,30 +64,41 @@ main:
         mov rsi, T
         call copylonglong
         
-        ; math
+        ; X = X + Y
         mov rdi, X
         mov rsi, Y
         call addition
         
+        mov rdi, TXT_ADD
+        call _printText
+        
         mov rdi, X
         call writelonglong
         
         mov rdi, Y
         call writelonglong
         
+        ; X = X - Y
         mov rdi, X
         mov rsi, Y
         call subtraction
         
+        mov rdi, TXT_SUB
+        call _printText
+        
         mov rdi, X
         call writelonglong
         
         mov rdi, Y
         call writelonglong
         
+        ; R = R - S
         mov rdi, R
         mov rsi, S
         call subtraction
+        
+        mov rdi, TXT_SUB
+        call _printText
         
         mov rdi, R
         call writelonglong
@@ -89,9 +106,13 @@ main:
         mov rdi, S
         call writelonglong
         
+        ; T = T * Z
         mov rdi, T
         mov rsi, Z
         call multiplication
+        
+        mov rdi, TXT_MUL
+        call _printText
         
         mov rdi, T
         call writelonglong
@@ -99,4 +120,12 @@ main:
         mov rdi, Z
         call writelonglong
         
+        ret
+       
+; ==========================================
+; Print a text over C function
+; arg1: rdi -> reference to message
+_printText:
+        xor rax, rax                ; reset of RAX before the call
+        call puts                   ; Call lib function
         ret
