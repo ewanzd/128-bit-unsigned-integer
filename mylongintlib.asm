@@ -3,7 +3,7 @@
 ;  Created date    : 18/11/2016
 ;  Last update     : 23/12/2016
 ;  Author          : Danilo Wanzenried
-;  Description     : We receive a project to create a lib for manage a 128bit number.
+;  Description     : A school project to create a lib for manage a unsigned 128bit number.
 ; 
 ; offer calls
 ; addition
@@ -43,6 +43,14 @@ global addition, subtraction, multiplication, readlonglong, writelonglong, copyl
         mov rsi, %1                         ; output message
         mov rdx, %2                         ; len of message
         syscall                             ; kernel call
+%endmacro
+
+; macro to clear buffer for new input value
+%macro _clearBuffer 0
+        and qword[IO_BUFFER], 0x0           ; clear buffer
+        and qword[IO_BUFFER + 8], 0x0       ; clear buffer
+        and qword[IO_BUFFER + 16], 0x0      ; clear buffer
+        and qword[IO_BUFFER + 24], 0x0      ; clear buffer
 %endmacro
 
 ; ==========================================
@@ -94,8 +102,8 @@ multiplication:
         push r9
         push r10
         
-        mov r8, qword[rdi]                  ; rdi first 8 bytes
-        mov r9, qword[rdi + 8]              ; rdi second 8 bytes
+        mov r8, qword[rdi]                  ; save rdi first 8 bytes
+        mov r9, qword[rdi + 8]              ; save rdi second 8 bytes
         
         mov rax, r8                         ; get first value for mul
         mul qword[rsi]                      ; get second value for mul
@@ -112,13 +120,15 @@ multiplication:
         mul qword[rsi + 8]                  ; multiplication with second 8 bytes of rsi
         add qword[rdi + 8], rax             ; to result
         
-        jc .setOverFlowFlag                 ; set OF if carry is set from addition
-        or r10, rdx                         ; to calculate OF
-        jg .setOverFlowFlag                 ; set OF if overflow from mul
+        jc .setOverFlowFlag                 ; jump if carry flag is set from last addition
+        or r10, rdx                         ; check if multiplication have a overflow
+        jg .setOverFlowFlag                 ; jump if overflow from multiplication
 
-        jmp $+2                             ; no overflow, jump next 2 lines
-    .setOverFlowFlag:
-        sev                                 ; set overflow flag
+        jmp .continue                       ; no overflow
+    .setOverFlowFlag:                       ; set overflow
+        mov al, 0x7f                        ; max number of al
+        add al, 1                           ; add 1 over the max
+    .continue:
         
         pop r10
         pop r9
@@ -141,14 +151,15 @@ readlonglong:
         push r8
         push rdi
         
-        xor rbx, rbx                        ; clean rbx
+        xor rbx, rbx                        ; clear rbx
+        _clearBuffer                        ; clear buffer
         
         mov rax, SYS_READ                   ; 0
         mov rdi, STD_IN                     ; 1
         mov rsi, IO_BUFFER                  ; input message
         mov rdx, IO_LEN                     ; len of message
         syscall                             ; get user input
-        
+
         pop rdi
         mov r8, 0                           ; init return reference counter
         mov rcx, IO_LEN                     ; init IO_BUFFER counter
@@ -171,9 +182,9 @@ readlonglong:
         push r8                             ; save r8
         shr r8, 1                           ; shift r8 1 to right side(divide 2)
         jnc .toDestRef                      ; if carry flag(odd)... 
-        shl dl, 4                           ; ...then shift 4 bit to left
+        shl dl, 4                           ; ...then shift dl 4 bit to left
     .toDestRef:
-        or byte[rdi + r8], dl               ; save to destination refenrence
+        or byte[rdi + r8], dl               ; save to destination reference
         pop r8                              ; load r8
         inc r8                              ; increment destination counter
         
@@ -198,8 +209,8 @@ writelonglong:
         push rdx
         
         xor rax, rax                        ; clear rax
-        mov rcx, IO_LEN                     ; init hex counter
         mov rdx, 0                          ; init byte counter
+        mov rcx, IO_LEN                     ; init hex counter
         
     .nextByte:
         mov al, byte[rdi + rdx]             ; get next byte from reference
@@ -212,13 +223,58 @@ writelonglong:
         shr al, 4                           ; shift 4 to right
         mov al, byte[HEXCHARS + rax]        ; get ascii representation from hex
         mov byte[IO_BUFFER + rcx - 1], al   ; Write to output-buffer
-        inc rdx                             ; to next byte in source
         
+        inc rdx                             ; to next byte
         dec rcx                             ; to next hex
-        jnz .nextByte                       ; check rcx is equal or greater 0 then next byte
+        jne .nextByte                       ; check rcx is equal or greater 0 then next byte
         
         _sysWrite IO_BUFFER, IO_LEN         ; write message
         _sysWrite NEW_LINE, 1               ; make a new line
+
+        pop rdx
+        pop rcx
+        pop rax
+        ret
+        
+; ==========================================
+; A procedure writelonglong writes a long long number on the standard output in hexadecimal form
+; without all unnecessary 0x00.
+; arg1: rdi -> reference to number
+writelonglongshort:
+        push rax
+        push rcx
+        push rdx
+        
+        xor rax, rax                        ; clear rax
+        mov rbx, 0                          ; set flag to find first hex number
+        mov rcx, 0                          ; init hex counter
+        mov rdx, 15                         ; init max byte counter
+        _clearBuffer                        ; clear buffer
+        
+    .nextByte:
+        mov al, byte[rdi + rdx]             ; get next byte from reference
+        cmp rbx, 1                          ; if flag is 1
+        je .analyseByte                     ; then analyse byte
+        cmp  al, 0                          ; if byte have a value
+        je .postByte                        ; else go to next byte
+        mov rbx, 1                          ; change flag
+        
+    .analyseByte:
+        and rax, 0x0f                       ; get first hex
+        mov al, byte[HEXCHARS + rax]        ; get ascii representation from hex
+        mov byte[IO_BUFFER + rcx + 1], al   ; Write to output-buffer
+        
+        mov al, byte[rdi + rdx]             ; get again byte from reference
+        shr al, 4                           ; shift 4 to right
+        mov al, byte[HEXCHARS + rax]        ; get ascii representation from hex
+        mov byte[IO_BUFFER + rcx], al       ; Write to output-buffer
+        
+    .postByte:
+        add rcx, 2                          ; to next hex
+        dec rdx                             ; to next byte
+        jge .nextByte                       ; if rdx is equal or greater 0 then next byte
+        
+        _sysWrite IO_BUFFER, IO_LEN         ; write message (without NEW_LINE to show result inline)
 
         pop rdx
         pop rcx

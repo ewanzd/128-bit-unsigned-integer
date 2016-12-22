@@ -13,9 +13,10 @@
 section .data                   ; Initialize variables
 
         TXT_IN      db "Enter a number:", 0
-        TXT_ADD     db "Result addition:", 0
-        TXT_SUB     db "Result subtraction: ", 0
-        TXT_MUL     db "Result multiplication: ", 0
+        TXT_ADDXY   db "Result addition (X = X + Y):", 0
+        TXT_SUBXY   db "Result subtraction (X = X - Y): ", 0
+        TXT_SUBRS   db "Result subtraction (R = R - S): ", 0
+        TXT_MULTZ   db "Result multiplication (T = T * Z): ", 0
 
 section .bss
 
@@ -69,7 +70,7 @@ main:
         mov rsi, Y
         call addition
         
-        mov rdi, TXT_ADD
+        mov rdi, TXT_ADDXY
         call _printText
         
         mov rdi, X
@@ -83,7 +84,7 @@ main:
         mov rsi, Y
         call subtraction
         
-        mov rdi, TXT_SUB
+        mov rdi, TXT_SUBXY
         call _printText
         
         mov rdi, X
@@ -97,7 +98,7 @@ main:
         mov rsi, S
         call subtraction
         
-        mov rdi, TXT_SUB
+        mov rdi, TXT_SUBRS
         call _printText
         
         mov rdi, R
@@ -111,7 +112,7 @@ main:
         mov rsi, Z
         call multiplication
         
-        mov rdi, TXT_MUL
+        mov rdi, TXT_MULTZ
         call _printText
         
         mov rdi, T
