@@ -12,11 +12,11 @@
 
 section .data                   ; Initialize variables
 
-        TXT_IN      db "Enter a number:", 0
+        TXT_IN      db "Enter a Hex-Number:", 0
         TXT_ADDXY   db "Result addition (X = X + Y):", 0
-        TXT_SUBXY   db "Result subtraction (X = X - Y): ", 0
-        TXT_SUBRS   db "Result subtraction (R = R - S): ", 0
-        TXT_MULTZ   db "Result multiplication (T = T * Z): ", 0
+        TXT_SUBXY   db "Result subtraction (X = X - Y):", 0
+        TXT_SUBRS   db "Result subtraction (R = R - S):", 0
+        TXT_MULTZ   db "Result multiplication (T = T * Z):", 0
 
 section .bss
 

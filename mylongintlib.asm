@@ -30,13 +30,14 @@ section .bss                                ; Uninitialize variables
 ; rax(64), eax(32), ax(16), ah(8), al(8)
 ; r8(64), r8d(32), r8w(16), r8b(8)
 ; qword(64), dword(32), word(16), byte(8)
+; DQ(64), DD(32), DW(16), DB(8)
 
 section .text                   ; Code
 
 ; file offer follow longint functions
 global addition, subtraction, multiplication, readlonglong, writelonglong, copylonglong
 
-; macro which help to write output
+; macro to write char string
 %macro _sysWrite 2
         mov rax, SYS_WRITE                  ; 1
         mov rdi, STD_OUT                    ; 1
@@ -45,12 +46,21 @@ global addition, subtraction, multiplication, readlonglong, writelonglong, copyl
         syscall                             ; kernel call
 %endmacro
 
-; macro to clear buffer for new input value
+; macro to read char string
+%macro _sysRead 2
+        mov rax, SYS_READ                   ; 0
+        mov rdi, STD_IN                     ; 1
+        mov rsi, %1                         ; input message
+        mov rdx, %2                         ; len of message
+        syscall                             ; get user input
+%endmacro
+
+; macro to set all bit to 0 (clear)
 %macro _clearBuffer 0
-        and qword[IO_BUFFER], 0x0           ; clear buffer
-        and qword[IO_BUFFER + 8], 0x0       ; clear buffer
-        and qword[IO_BUFFER + 16], 0x0      ; clear buffer
-        and qword[IO_BUFFER + 24], 0x0      ; clear buffer
+        and qword[IO_BUFFER], 0x0
+        and qword[IO_BUFFER + 8], 0x0
+        and qword[IO_BUFFER + 16], 0x0
+        and qword[IO_BUFFER + 24], 0x0
 %endmacro
 
 ; ==========================================
@@ -153,12 +163,7 @@ readlonglong:
         
         xor rbx, rbx                        ; clear rbx
         _clearBuffer                        ; clear buffer
-        
-        mov rax, SYS_READ                   ; 0
-        mov rdi, STD_IN                     ; 1
-        mov rsi, IO_BUFFER                  ; input message
-        mov rdx, IO_LEN                     ; len of message
-        syscall                             ; get user input
+        _sysRead IO_BUFFER, IO_LEN          ; read hex input from user
 
         pop rdi
         mov r8, 0                           ; init return reference counter
@@ -173,12 +178,12 @@ readlonglong:
         mov bl, byte[HEXCHARS + rdx]        ; get next hex char
         cmp bl, al                          ; if char available 
         je .continue                        ; then copy to reference
-        cmp rdx, 15                         ; if char not available, next byte
-        jae .preNextByte
+        cmp rdx, 15                         ; if char not available, next byte (ignore)
+        jge .preNextByte
         inc rdx                             ; increment counter
         jmp .nextHex                        ; next hex char
-        
     .continue:
+    
         push r8                             ; save r8
         shr r8, 1                           ; shift r8 1 to right side(divide 2)
         jnc .toDestRef                      ; if carry flag(odd)... 
@@ -230,51 +235,6 @@ writelonglong:
         
         _sysWrite IO_BUFFER, IO_LEN         ; write message
         _sysWrite NEW_LINE, 1               ; make a new line
-
-        pop rdx
-        pop rcx
-        pop rax
-        ret
-        
-; ==========================================
-; A procedure writelonglong writes a long long number on the standard output in hexadecimal form
-; without all unnecessary 0x00.
-; arg1: rdi -> reference to number
-writelonglongshort:
-        push rax
-        push rcx
-        push rdx
-        
-        xor rax, rax                        ; clear rax
-        mov rbx, 0                          ; set flag to find first hex number
-        mov rcx, 0                          ; init hex counter
-        mov rdx, 15                         ; init max byte counter
-        _clearBuffer                        ; clear buffer
-        
-    .nextByte:
-        mov al, byte[rdi + rdx]             ; get next byte from reference
-        cmp rbx, 1                          ; if flag is 1
-        je .analyseByte                     ; then analyse byte
-        cmp  al, 0                          ; if byte have a value
-        je .postByte                        ; else go to next byte
-        mov rbx, 1                          ; change flag
-        
-    .analyseByte:
-        and rax, 0x0f                       ; get first hex
-        mov al, byte[HEXCHARS + rax]        ; get ascii representation from hex
-        mov byte[IO_BUFFER + rcx + 1], al   ; Write to output-buffer
-        
-        mov al, byte[rdi + rdx]             ; get again byte from reference
-        shr al, 4                           ; shift 4 to right
-        mov al, byte[HEXCHARS + rax]        ; get ascii representation from hex
-        mov byte[IO_BUFFER + rcx], al       ; Write to output-buffer
-        
-    .postByte:
-        add rcx, 2                          ; to next hex
-        dec rdx                             ; to next byte
-        jge .nextByte                       ; if rdx is equal or greater 0 then next byte
-        
-        _sysWrite IO_BUFFER, IO_LEN         ; write message (without NEW_LINE to show result inline)
 
         pop rdx
         pop rcx
